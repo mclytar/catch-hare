@@ -1,0 +1,2 @@
+#define VERSION_MAJOR   @CatchHare_VERSION_MAJOR@
+#define VERSION_MINOR   @CatchHare_VERSION_MINOR@
