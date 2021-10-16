@@ -1,6 +1,9 @@
 #include "io.h"
 #include "player.h"
 
+uint8_t strategy_HumanPlayer(PLAYER * p, BOARD b);
+uint8_t strategy_AILearner(PLAYER * p, BOARD b);
+
 KNOWLEDGE * CreateKnowledge(RAW_KNOWLEDGE * raw) {
     KNOWLEDGE * knowledge = malloc(sizeof(KNOWLEDGE));
 
@@ -27,26 +30,64 @@ void DestroyKnowledge(KNOWLEDGE ** k) {
     *k = NULL;
 }
 
-PLAYER * CreateHumanPlayer(KNOWLEDGE * k) {
+PLAYER * CreateHumanPlayer(KNOWLEDGE * k, VIRTUAL_INPUT * vi) {
     PLAYER * player = malloc(sizeof(PLAYER));
 
     player->cursor = (BOARD_COORDS) { .x = 2, .y = 2 };
     player->selection = (BOARD_COORDS) { .x = 7, .y = 7 };
+    player->input = vi;
     player->knowledge = k;
-    player->strategy = NULL; // TODO
+    player->strategy = strategy_HumanPlayer;
 
     return player;
 }
 
-PLAYER * CreateAILearner(KNOWLEDGE * k) {
+PLAYER * CreateAILearner(KNOWLEDGE * k, VIRTUAL_INPUT * vi) {
     PLAYER * player = malloc(sizeof(PLAYER));
 
     player->cursor = (BOARD_COORDS) { .x = 2, .y = 2 };
     player->selection = (BOARD_COORDS) { .x = 7, .y = 7 };
+    player->input = vi;
     player->knowledge = k;
-    player->strategy = NULL; // TODO
+    player->strategy = strategy_AILearner;
 
     return player;
+}
+
+void DestroyPlayer(PLAYER ** p) {
+    PLAYER * player = *p;
+    free(player);
+    *p = NULL;
+}
+
+uint8_t strategy_HumanPlayer(PLAYER * p, BOARD b) {
+    uint8_t input = VirtualInputAwait(p->input);
+
+    switch (input) {
+        case CMD_UP:
+            if (p->cursor.y < 4) p->cursor.y++;
+            return 0;
+        case CMD_DOWN:
+            if (p->cursor.y > 0) p->cursor.y--;
+            return 0;
+        case CMD_RIGHT:
+            if (p->cursor.x < 4) p->cursor.x++;
+            return 0;
+        case CMD_LEFT:
+            if (p->cursor.x > 0) p->cursor.x--;
+            return 0;
+        case CMD_ENTER:
+            if (p->selection.x == p->cursor.x && p->selection.y == p->cursor.y) p->selection = (BOARD_COORDS) { .x = 7, .y = 7 };
+            else if (PIECE_TO_PLAYER(BoardPieceAt(b, p->cursor)) == BoardCurrentPlayer(b)) p->selection = p->cursor;
+            else if (p->selection.x != 7 && p->selection.y != 7 && BoardPieceAt(b, p->cursor) == PIECE_NIL) return 1;
+            else return 0;
+        default:
+            return 0;
+    }
+}
+
+uint8_t strategy_AILearner(PLAYER * p, BOARD b) {
+    return strategy_HumanPlayer(p, b);
 }
 
 /*

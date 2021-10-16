@@ -108,7 +108,7 @@ void VirtualScreenPrintMenu(VIRTUAL_SCREEN * vs, VS_COORDS coords, const char **
     printf("\033[1;1H");
 }
 
-void VirtualScreenPrintBoard(VIRTUAL_SCREEN * vs, VS_COORDS coords) {
+void VirtualScreenDrawBoard(VIRTUAL_SCREEN * vs, VS_COORDS coords) {
     ASSERT(vs, "VIRTUAL_SCREEN not allocated");
 
     printf("\033[%d;%dH  --   --   --   --  ", coords.y + 1, coords.x + 1);

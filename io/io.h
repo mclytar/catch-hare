@@ -33,7 +33,7 @@ unsigned int VirtualScreenHeight(VIRTUAL_SCREEN * vs);
 void VirtualScreenDrawFrame(VIRTUAL_SCREEN * vs, const char * title);
 void VirtualScreenPrint(VIRTUAL_SCREEN * vs, VS_COORDS coords, const char * text);
 void VirtualScreenPrintMenu(VIRTUAL_SCREEN * vs, VS_COORDS coords, const char ** items, uint8_t item_count, uint8_t item_highlight);
-void VirtualScreenPrintBoard(VIRTUAL_SCREEN * vs, VS_COORDS coords);
+void VirtualScreenDrawBoard(VIRTUAL_SCREEN * vs, VS_COORDS coords);
 
 #define COLOR_BLACK     0
 #define COLOR_RED       1

@@ -19,25 +19,58 @@
 void play_teach(VIRTUAL_SCREEN * vs, VIRTUAL_INPUT * vi) {
     VirtualScreenDrawFrame(vs, "Catch the Hare -- Teach the AI");
     VS_COORDS board_coords = MAKE_COORDS(8, 5);
-    VirtualScreenPrintBoard(vs, board_coords);
+    VirtualScreenDrawBoard(vs, board_coords);
 
     RAW_KNOWLEDGE * rk = CreateRawKnowledge("knowledge.dat");
     KNOWLEDGE * k = CreateKnowledge(rk);
 
     PLAYER ** players = malloc(2 * sizeof(PLAYER *));
-    players[0] = CreateAILearner(k);
-    players[1] = CreateHumanPlayer(k);
+    players[0] = CreateAILearner(k, vi);
+    players[1] = CreateHumanPlayer(k, vi);
 
     BOARD board = InitializeBoard();
     BoardDisplay(board, vs, board_coords);
+    BOARD_DISPLAY_FORMAT display_format;
 
+    // main game loop.
+    while (!BoardGameOver(board)) {
+        PLAYER * current_player = players[BoardCurrentPlayer(board)];
 
+        BoardDisplayFormatClear(&display_format);
+        BoardDisplayFormatSet(&display_format, current_player->selection, COLOR_GREEN | COLOR_BLUE, COLOR_BLACK);
+        BOARD avail_moves = BoardAvailableMovesFrom(board, current_player->selection);
+        BOARD avail_captures = BoardAvailableCapturesFrom(board, current_player->selection);
+        for (uint8_t i = 0; i < 25; i++) {
+            if (avail_moves & (1 << i)) {
+                display_format.format[i] = COLOR_GREEN << 4;
+            }
+            if (avail_captures & (1 << i)) {
+                display_format.format[i] = COLOR_RED << 4;
+            }
+        }
+        if (display_format.format[current_player->cursor.y * 5 + current_player->cursor.x] & 0xF0) {
+            display_format.format[current_player->cursor.y * 5 + current_player->cursor.x] |= 0x80;
+        } else {
+            BoardDisplayFormatInvert(&display_format, current_player->cursor);
+        }
+        BoardDisplayEx(board, vs, board_coords, &display_format);
 
-    // TODO: remove once game is implemented!
-    VirtualInputAwait(vi);
+        if (current_player->strategy(current_player, board)) {
+            if (BoardCanMove(board, current_player->selection, current_player->cursor)) {
+                BoardMove(&board, current_player->selection, current_player->cursor);
+                current_player->selection = (BOARD_COORDS) { .x = 7, .y = 7 };
+            } else if (BoardCanCapture(board, current_player->selection, current_player->cursor)) {
+                BoardCapture(&board, current_player->selection, current_player->cursor);
+                current_player->selection = (BOARD_COORDS) { .x = 7, .y = 7 };
+            }
+        }
+    }
 
-    // TODO: implement game!
+    // TODO: Game over screen.
 
+    DestroyPlayer(&players[1]);
+    DestroyPlayer(&players[0]);
+    free(players);
     DestroyKnowledge(&k);
     DestroyRawKnowledge(&rk);
 

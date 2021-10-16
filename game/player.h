@@ -22,18 +22,20 @@ BOARD_COORDS KnowledgeGetStatusMoveDestination(KNOWLEDGE * k, uint32_t status);
 
 struct player_t;
 
-typedef BOARD (* Strategy)(struct player_t *, BOARD);
+typedef uint8_t (* Strategy)(struct player_t *, BOARD);
 //typedef void (* Destructor)(struct player_t *, BOARD);
 
 typedef struct player_t {
     BOARD_COORDS cursor;
     BOARD_COORDS selection;
+    VIRTUAL_INPUT * input;
     KNOWLEDGE * knowledge;
     Strategy strategy;
 } PLAYER;
 
-PLAYER * CreateHumanPlayer(KNOWLEDGE * k);
-PLAYER * CreateAILearner(KNOWLEDGE * k);
+PLAYER * CreateHumanPlayer(KNOWLEDGE * k, VIRTUAL_INPUT * vi);
+PLAYER * CreateAILearner(KNOWLEDGE * k, VIRTUAL_INPUT * vi);
+void DestroyPlayer(PLAYER ** p);
 
 /*
 PLAYER CreateHumanPlayer(uint8_t);
