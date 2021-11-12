@@ -4,30 +4,69 @@
 uint8_t strategy_HumanPlayer(PLAYER * p, BOARD b);
 uint8_t strategy_AILearner(PLAYER * p, BOARD b);
 
-KNOWLEDGE * CreateKnowledge(RAW_KNOWLEDGE * raw) {
-    KNOWLEDGE * knowledge = malloc(sizeof(KNOWLEDGE));
-
-    knowledge->raw = raw;
-
-    uint32_t count = 0;
-    for (uint32_t i = 0; i < raw->contents_length; i++) {
-        count += 1 - (raw->contents[i] >> 31);
+uint32_t KnowledgeGetMove(KNOWLEDGE * k, BOARD board, KNOWLEDGE_MOVE * move) {
+    for (uint32_t i = 0; i < k->contents_length; i++) {
+        if (((k->contents[i] & 0xC0000000) == 0) && ((k->contents[i] & 0x01FFFFFF) == (board & 0x01FFFFFF))) {
+            for (uint32_t j = i + 1; j < k->contents_length; j++) {
+                if (((k->contents[j] & 0xC0000000) == 0x80000000)
+                    || (
+                            (k->contents[j] & 0xC0000000) == 0x40000000
+                            && (((k->contents[j] >> 12) & 0x7) == ((board >> 25) & 0x7))
+                            && (((k->contents[j] >> 15) & 0x7) == ((board >> 28) & 0x7)))) {
+                    if (move) {
+                        move->from.x = (k->contents[j]) & 0x7;
+                        move->from.y = (k->contents[j] >> 3) & 0x7;
+                        move->to.x = (k->contents[j] >> 6) & 0x7;
+                        move->to.y = (k->contents[j] >> 9) & 0x7;
+                    }
+                    return 1;
+                } else if ((k->contents[j] & 0xC0000000) == 0) return 0;
+            }
+            return 0;
+        }
     }
-
-    knowledge->status_ids = malloc(count * sizeof(uint32_t));
-    uint32_t current = 0;
-    for (uint32_t i = 0; i < raw->contents_length; i++) {
-        if (raw->contents[i] >> 31 == 0) knowledge->status_ids[current++] = i;
-    }
-
-    return knowledge;
+    return 0;
 }
 
-void DestroyKnowledge(KNOWLEDGE ** k) {
-    KNOWLEDGE * knowledge = *k;
-
-    free(knowledge->status_ids);
-    *k = NULL;
+void KnowledgeUpdate(KNOWLEDGE * k, BOARD board, KNOWLEDGE_MOVE * move) {
+    for (uint32_t i = 0; i < k->contents_length; i++) {
+        if (((k->contents[i] & 0xC0000000) == 0) && ((k->contents[i] & 0x01FFFFFF) == (board & 0x01FFFFFF))) {
+            uint32_t * new_contents = malloc((k->contents_length + 1) * sizeof(uint32_t));
+            uint32_t ins_index;
+            for (ins_index = i + 1; ins_index < k->contents_length && (k->contents[ins_index] & 0xC0000000) == 0; ins_index++);
+            for (uint32_t j = 0; j < ins_index; j++) {
+                new_contents[j] = k->contents[j];
+            }
+            new_contents[ins_index] = 0x40000000;
+            new_contents[ins_index] |= (board & 0x7E000000) >> 13;
+            new_contents[ins_index] |= (move->from.x & 0x7);
+            new_contents[ins_index] |= (move->from.y & 0x7) << 3;
+            new_contents[ins_index] |= (move->to.x & 0x7) << 6;
+            new_contents[ins_index] |= (move->to.y & 0x7) << 9;
+            for (uint32_t j = ins_index; j < k->contents_length; j++) {
+                new_contents[j + 1] = k->contents[j];
+            }
+            free(k->contents);
+            k->contents = new_contents;
+            k->contents_length++;
+            return;
+        }
+    }
+    uint32_t * new_contents = malloc((k->contents_length + 2) * sizeof(uint32_t));
+    for (uint32_t j = 0; j < k->contents_length; j++) {
+        new_contents[j] = k->contents[j];
+    }
+    new_contents[k->contents_length] = board & 0x01FFFFFF;
+    uint32_t ins_index = k->contents_length + 1;
+    new_contents[ins_index] = 0x40000000;
+    new_contents[ins_index] |= (board & 0x7E000000) >> 13;
+    new_contents[ins_index] |= (move->from.x & 0x7);
+    new_contents[ins_index] |= (move->from.y & 0x7) << 3;
+    new_contents[ins_index] |= (move->to.x & 0x7) << 6;
+    new_contents[ins_index] |= (move->to.y & 0x7) << 9;
+    free(k->contents);
+    k->contents = new_contents;
+    k->contents_length += 2;
 }
 
 PLAYER * CreateHumanPlayer(KNOWLEDGE * k, VIRTUAL_INPUT * vi) {
@@ -65,15 +104,19 @@ uint8_t strategy_HumanPlayer(PLAYER * p, BOARD b) {
 
     switch (input) {
         case CMD_UP:
+        case 'W':
             if (p->cursor.y < 4) p->cursor.y++;
             return 0;
         case CMD_DOWN:
+        case 'S':
             if (p->cursor.y > 0) p->cursor.y--;
             return 0;
         case CMD_RIGHT:
+        case 'D':
             if (p->cursor.x < 4) p->cursor.x++;
             return 0;
         case CMD_LEFT:
+        case 'A':
             if (p->cursor.x > 0) p->cursor.x--;
             return 0;
         case CMD_ENTER:
@@ -87,7 +130,31 @@ uint8_t strategy_HumanPlayer(PLAYER * p, BOARD b) {
 }
 
 uint8_t strategy_AILearner(PLAYER * p, BOARD b) {
-    return strategy_HumanPlayer(p, b);
+    KNOWLEDGE * k = p->knowledge;
+    if (!k) return strategy_HumanPlayer(p, b);
+
+    KNOWLEDGE_MOVE m;
+    if (!KnowledgeGetMove(k, b, &m)) {
+        uint8_t ok = strategy_HumanPlayer(p, b);
+        if (ok) {
+            m.from = p->selection;
+            m.to = p->cursor;
+            KnowledgeUpdate(k, b, &m);
+        }
+        return ok;
+    }
+
+    // Delay
+    uint32_t w = rand();
+    for (uint32_t i = 0; i < 100000000; i++) {
+        if (w % 2) w /= 2;
+        else w = 3 * w + 1;
+    }
+
+    p->cursor = m.to;
+    p->selection = m.from;
+
+    return 1;
 }
 
 /*

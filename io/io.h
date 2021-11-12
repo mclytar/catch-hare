@@ -65,7 +65,7 @@ void DestroyVirtualInput(VIRTUAL_INPUT ** vi);
 void VirtualInputFlush(VIRTUAL_INPUT * vi);
 uint8_t VirtualInputAwait(VIRTUAL_INPUT * vi);
 
-/* RAW_KNOWLEDGE
+/* KNOWLEDGE
  * Cross-platform abstraction of the i/o operations on the knowledge file.
  */
 
@@ -80,10 +80,10 @@ typedef struct raw_knowledge_t {
     KNOWLEDGE_HEADER header;
     unsigned int contents_length;
     uint32_t * contents;
-} RAW_KNOWLEDGE;
+} KNOWLEDGE;
 
-RAW_KNOWLEDGE * CreateRawKnowledge(const char * filename);
-void StoreRawKnowledge(RAW_KNOWLEDGE * k);
-void DestroyRawKnowledge(RAW_KNOWLEDGE ** k);
+KNOWLEDGE * CreateKnowledge(const char * filename);
+void DestroyKnowledge(KNOWLEDGE ** k);
+void KnowledgeStore(KNOWLEDGE * k);
 
 #endif

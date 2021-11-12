@@ -33,14 +33,8 @@ uint8_t BoardGameOver(BOARD board) {
 
     // Check if game is over for hare.
     BOARD_COORDS hare_coord = { .x = (board >> 25) & 0x7, .y = (board >> 28) & 0x7 };
-    uint8_t linear = hare_coord.y * 5 + hare_coord.x;
-    BOARD hare_avail = 0;
-    hare_avail |= (0x15 << ((hare_coord.y - 2) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y - 2) * 5));
-    hare_avail |= (0x0E << ((hare_coord.y - 1) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y - 1) * 5));
-    hare_avail |= (0x1B << ((hare_coord.y    ) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y    ) * 5));
-    hare_avail |= (0x0E << ((hare_coord.y + 1) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y + 1) * 5));
-    hare_avail |= (0x15 << ((hare_coord.y + 2) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y + 2) * 5));
-    hare_avail &= (~board & 0x01FFFFFF);
+    //uint8_t linear = hare_coord.y * 5 + hare_coord.x;
+    BOARD hare_avail = BoardHareAvailableMoves(board) | BoardHareAvailableCaptures(board);
     return !hare_avail;
 }
 
@@ -105,11 +99,21 @@ BOARD BoardHareAvailableMoves(BOARD board) {
     BOARD_COORDS hare_coord = { .x = (board >> 25) & 0x7, .y = (board >> 28) & 0x7 };
     uint8_t linear = hare_coord.y * 5 + hare_coord.x;
     BOARD hare_avail = 0;
-    uint8_t diagonal = (1 - (hare_coord.x + hare_coord.y % 2));
-    diagonal = 0x04 | (diagonal << 1) | (diagonal << 3);
-    hare_avail |= (diagonal << ((hare_coord.y - 1) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y - 1) * 5));
-    hare_avail |= (0x0A     << ((hare_coord.y    ) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y    ) * 5));
-    hare_avail |= (diagonal << ((hare_coord.y + 1) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y + 1) * 5));
+    BOARD hare_loc = 1 << linear;
+    if ((hare_coord.x + hare_coord.y) % 2) {
+        hare_avail |= ((hare_loc << 1) | (hare_loc >> 1)) & (0x1F << hare_coord.y * 5);
+        hare_avail |= (hare_loc << 5) | (hare_loc >> 5);
+    } else {
+        hare_avail |= ((hare_loc << 1) | (hare_loc >> 1)) & (0x1F << hare_coord.y * 5);
+        hare_avail |= (hare_loc << 10) | (hare_loc >> 10);
+        hare_avail |= ((hare_loc << 4) | (hare_loc << 5) | (hare_loc << 6)) & (0x1F << (hare_coord.y + 1) * 5);
+        hare_avail |= ((hare_loc >> 4) | (hare_loc >> 5) | (hare_loc >> 6)) & (0x1F << (hare_coord.y - 1) * 5);
+    }
+    //uint8_t diagonal = (1 - ((hare_coord.x + hare_coord.y) % 2));
+    //diagonal = 0x04 | (diagonal << 1) | (diagonal << 3);
+    //hare_avail |= (diagonal << ((hare_coord.y - 1) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y - 1) * 5));
+    //hare_avail |= (0x0A     << ((hare_coord.y    ) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y    ) * 5));
+    //hare_avail |= (diagonal << ((hare_coord.y + 1) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y + 1) * 5));
     hare_avail &= (~board & 0x01FFFFFF);
     return hare_avail;
 }
@@ -118,11 +122,22 @@ BOARD BoardHareAvailableCaptures(BOARD board) {
     BOARD_COORDS hare_coord = { .x = (board >> 25) & 0x7, .y = (board >> 28) & 0x7 };
     uint8_t linear = hare_coord.y * 5 + hare_coord.x;
     BOARD hare_avail = 0;
-    uint8_t diagonal = (1 - (hare_coord.x + hare_coord.y % 2));
-    diagonal = 0x04 | (diagonal << 0) | (diagonal << 4);
-    hare_avail |= (diagonal << ((hare_coord.y - 2) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y - 2) * 5));
-    hare_avail |= (0x11     << ((hare_coord.y    ) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y    ) * 5));
-    hare_avail |= (diagonal << ((hare_coord.y + 2) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y + 2) * 5));
+    BOARD hare_loc = 1 << linear;
+    if ((hare_coord.x + hare_coord.y) % 2) {
+        hare_avail |= ((hare_loc << 2) | (hare_loc >> 2)) & (0x1F << hare_coord.y * 5);
+        hare_avail |= (hare_loc << 10) | (hare_loc >> 10);
+    } else {
+        hare_avail |= ((hare_loc << 2) | (hare_loc >> 2)) & (0x1F << hare_coord.y * 5);
+        hare_avail |= (hare_loc << 10) | (hare_loc >> 10);
+        hare_avail |= ((hare_loc << 8) | (hare_loc << 10) | (hare_loc << 12)) & (0x1F << (hare_coord.y + 2) * 5);
+        hare_avail |= ((hare_loc >> 8) | (hare_loc >> 10) | (hare_loc >> 12)) & (0x1F << (hare_coord.y - 2) * 5);
+    }
+    //uint8_t diagonal = (1 - ((hare_coord.x + hare_coord.y) % 2));
+    //diagonal = 0x04 | (diagonal << 0) | (diagonal << 4);
+    //hare_avail |= (diagonal << ((hare_coord.y - 2) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y - 2) * 5));
+    //hare_avail |= (0x11     << ((hare_coord.y    ) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y    ) * 5));
+    //hare_avail |= (diagonal << ((hare_coord.y + 2) * 5 + hare_coord.x)) & (0x1F << ((hare_coord.y + 2) * 5));
+    //hare_avail >>= 2;
     hare_avail &= (~board & 0x01FFFFFF);
     return hare_avail;
 }
@@ -250,7 +265,7 @@ void BoardMove(BOARD * board, BOARD_COORDS from, BOARD_COORDS to) {
 
 void BoardCapture(BOARD * board, BOARD_COORDS from, BOARD_COORDS to) {
     uint8_t piece = BoardPieceAt(*board, from);
-    if (piece == PIECE_HARE) {
+        if (piece == PIECE_HARE) {
         from.x += to.x;
         from.x /= 2;
         from.y += to.y;

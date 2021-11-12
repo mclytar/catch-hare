@@ -21,8 +21,7 @@ void play_teach(VIRTUAL_SCREEN * vs, VIRTUAL_INPUT * vi) {
     VS_COORDS board_coords = MAKE_COORDS(8, 5);
     VirtualScreenDrawBoard(vs, board_coords);
 
-    RAW_KNOWLEDGE * rk = CreateRawKnowledge("knowledge.dat");
-    KNOWLEDGE * k = CreateKnowledge(rk);
+    KNOWLEDGE * k = CreateKnowledge("knowledge.dat");
 
     PLAYER ** players = malloc(2 * sizeof(PLAYER *));
     players[0] = CreateAILearner(k, vi);
@@ -36,8 +35,11 @@ void play_teach(VIRTUAL_SCREEN * vs, VIRTUAL_INPUT * vi) {
     while (!BoardGameOver(board)) {
         PLAYER * current_player = players[BoardCurrentPlayer(board)];
 
+        // Clear board.
         BoardDisplayFormatClear(&display_format);
+        // Colorize selection.
         BoardDisplayFormatSet(&display_format, current_player->selection, COLOR_GREEN | COLOR_BLUE, COLOR_BLACK);
+        // Colorize possible moves.
         BOARD avail_moves = BoardAvailableMovesFrom(board, current_player->selection);
         BOARD avail_captures = BoardAvailableCapturesFrom(board, current_player->selection);
         for (uint8_t i = 0; i < 25; i++) {
@@ -47,6 +49,25 @@ void play_teach(VIRTUAL_SCREEN * vs, VIRTUAL_INPUT * vi) {
             if (avail_captures & (1 << i)) {
                 display_format.format[i] = COLOR_RED << 4;
             }
+            KNOWLEDGE_MOVE move;
+            BOARD board_move = board & 0x01FFFFFF;
+            if (current_player == players[0]) {
+                board_move |= 0x7E000000;
+                BoardMove(&board_move, current_player->selection, (BOARD_COORDS) { .x = (i % 5), .y = (i / 5) });
+                for (uint32_t j = 0; j < k->contents_length; j++) {
+                    if ((avail_moves & (1 << i)) && k->contents[j] == (board_move & 0x01FFFFFF)) {
+                        display_format.format[i] |= COLOR_BLUE << 4;
+                        break;
+                    }
+                }
+                board_move = board & 0x01FFFFFF;
+            } else {
+                board_move |= (i % 5) << 25;
+                board_move |= (i / 5) << 28;
+                if (((avail_moves | avail_captures) & (1 << i)) && (KnowledgeGetMove(current_player->knowledge, board_move, &move))) {
+                    display_format.format[i] |= display_format.format[i] << 1;
+                }
+            }
         }
         if (display_format.format[current_player->cursor.y * 5 + current_player->cursor.x] & 0xF0) {
             display_format.format[current_player->cursor.y * 5 + current_player->cursor.x] |= 0x80;
@@ -54,6 +75,15 @@ void play_teach(VIRTUAL_SCREEN * vs, VIRTUAL_INPUT * vi) {
             BoardDisplayFormatInvert(&display_format, current_player->cursor);
         }
         BoardDisplayEx(board, vs, board_coords, &display_format);
+
+        VirtualScreenPrint(vs, (VS_COORDS) {.x = 4, .y = 20 }, "                   ");
+        if (BoardCurrentPlayer(board)) {
+            VirtualScreenPrint(vs, (VS_COORDS) {.x = 4, .y = 20 }, "Now playing: hare");
+        } else if (!KnowledgeGetMove(k, board, NULL)) {
+            VirtualScreenPrint(vs, (VS_COORDS) {.x = 4, .y = 20 }, "Hounds need help!");
+        } else {
+            VirtualScreenPrint(vs, (VS_COORDS) {.x = 4, .y = 20 }, "Now playing: hounds");
+        }
 
         if (current_player->strategy(current_player, board)) {
             if (BoardCanMove(board, current_player->selection, current_player->cursor)) {
@@ -66,13 +96,21 @@ void play_teach(VIRTUAL_SCREEN * vs, VIRTUAL_INPUT * vi) {
         }
     }
 
-    // TODO: Game over screen.
+    VirtualScreenDrawFrame(vs, "Catch the Hare -- Teach the AI");
+    VirtualScreenPrint(vs, (VS_COORDS) {.x = 4, .y = 6}, "GAME OVER!");
+    if (BoardCurrentPlayer(board)) {
+        KnowledgeStore(k);
+        VirtualScreenPrint(vs, (VS_COORDS) {.x = 4, .y = 7}, "Hounds' victory!");
+    } else {
+        VirtualScreenPrint(vs, (VS_COORDS) {.x = 4, .y = 7}, "Hare's victory!");
+    }
+    VirtualInputFlush(vi);
+    VirtualInputAwait(vi);
 
-    DestroyPlayer(&players[1]);
-    DestroyPlayer(&players[0]);
-    free(players);
-    DestroyKnowledge(&k);
-    DestroyRawKnowledge(&rk);
+    //DestroyPlayer(&players[1]);
+    //DestroyPlayer(&players[0]);
+    //free(players);
+    //DestroyKnowledge(&k);
 
     VirtualScreenDrawFrame(vs, "Catch the Hare");
     VirtualScreenPrint(vs, MAKE_COORDS(2, 3), "Main Menu");

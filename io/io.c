@@ -168,15 +168,17 @@ uint8_t VirtualInputAwait(VIRTUAL_INPUT * vi) {
     }
 }
 
-RAW_KNOWLEDGE * CreateRawKnowledge(const char * filename) {
+KNOWLEDGE * CreateKnowledge(const char * filename) {
     ASSERT(filename, "string not allocated");
-    RAW_KNOWLEDGE * knowledge;
+    KNOWLEDGE * knowledge;
     FILE * file;
 
     errno_t err = fopen_s(&file, filename, "rb");
     if (!err) {
-        knowledge = malloc(sizeof(RAW_KNOWLEDGE));
+        knowledge = malloc(sizeof(KNOWLEDGE));
         ASSERT(knowledge, "Could not allocate memory");
+        // Set file name.
+        knowledge->filename = filename;
         // Read file length.
         fseek(file, 0, SEEK_END);
         fpos_t length;
@@ -185,38 +187,52 @@ RAW_KNOWLEDGE * CreateRawKnowledge(const char * filename) {
         // Read header.
         fread_s(&knowledge->header, sizeof(KNOWLEDGE_HEADER), sizeof(KNOWLEDGE_HEADER), 1, file);
         ASSERT(knowledge->header.magic_number == 0x4B4E4F57, "Unknown file type");
-        ASSERT(knowledge->header.version_major != 0, "Incompatible version");
-        ASSERT(knowledge->header.version_minor != 1, "Incompatible version");
+        ASSERT(knowledge->header.version_major == 0, "Incompatible version");
+        ASSERT(knowledge->header.version_minor == 1, "Incompatible version");
         // Get contents length.
         unsigned int contents_length = (unsigned int)((length - sizeof(KNOWLEDGE_HEADER)) / sizeof(uint32_t));
         knowledge->contents_length = contents_length;
         // Get contents.
         knowledge->contents = malloc(contents_length * sizeof(uint32_t));
         ASSERT(knowledge->contents, "Could not allocate memory");
-        fread_s(knowledge->contents, sizeof(uint32_t), sizeof(uint32_t), contents_length, file);
+        fread_s(knowledge->contents, contents_length * sizeof(uint32_t), sizeof(uint32_t), contents_length, file);
         // Close file.
         fclose(file);
         return knowledge;
     } else if (err == ENOENT) {
         // Construct file.
-        knowledge = malloc(sizeof(RAW_KNOWLEDGE));
+        knowledge = malloc(sizeof(KNOWLEDGE));
         ASSERT(knowledge, "Could not allocate memory");
         knowledge->header.magic_number = 0x4B4E4F57;
         knowledge->header.version_major = 0;
         knowledge->header.version_minor = 1;
         knowledge->filename = filename;
-        knowledge->contents_length = 0;
-        knowledge->contents = NULL;
+        knowledge->contents_length = 2;
+        knowledge->contents = malloc(2 * sizeof(uint32_t));
+        knowledge->contents[0] = 0x000047FF;
+        knowledge->contents[1] = 0x80000449;
         return knowledge;
     } else {
         ASSERT(0, "I/O error");
     }
 }
 
-void StoreRawKnowledge(RAW_KNOWLEDGE * k) {
-    // TODO
+void KnowledgeStore(KNOWLEDGE * k) {
+    FILE * file;
+
+    errno_t err = fopen_s(&file, k->filename, "wb");
+    if (!err) {
+        // Write header.
+        fwrite(&k->header, sizeof(KNOWLEDGE_HEADER), 1, file);
+        // Write data.
+        fwrite(k->contents, sizeof(uint32_t), k->contents_length, file);
+        // Close file.
+        fclose(file);
+    } else {
+        ASSERT(0, "I/O error");
+    }
 }
 
-void DestroyRawKnowledge(RAW_KNOWLEDGE ** k) {
+void DestroyKnowledge(KNOWLEDGE ** k) {
     // TODO
 }

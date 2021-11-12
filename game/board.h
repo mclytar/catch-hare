@@ -22,8 +22,8 @@
 typedef uint32_t BOARD;
 typedef uint8_t PIECE;
 typedef struct board_coord_t {
-    uint8_t x : 3;
-    uint8_t y : 3;
+    uint8_t x : 4;
+    uint8_t y : 4;
 } BOARD_COORDS;
 
 typedef struct board_display_format_t {

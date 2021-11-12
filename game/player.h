@@ -4,20 +4,15 @@
 #include "io.h"
 #include "board.h"
 
+typedef struct knowledge_move_t {
+    BOARD_COORDS from;
+    BOARD_COORDS to;
+} KNOWLEDGE_MOVE;
 
-
-typedef struct knowledge_t {
-    RAW_KNOWLEDGE * raw;
-    uint32_t status_count;
-    uint32_t * status_ids;
-} KNOWLEDGE;
-
-KNOWLEDGE * CreateKnowledge(RAW_KNOWLEDGE * raw);
-void DestroyKnowledge(KNOWLEDGE ** k);
-uint32_t KnowledgeGetStatusId(KNOWLEDGE * k, BOARD board, uint32_t * offset);
-uint32_t KnowledgeGetStatusCapacity(KNOWLEDGE * k, uint32_t status);
-BOARD_COORDS KnowledgeGetStatusMoveSource(KNOWLEDGE * k, uint32_t status);
-BOARD_COORDS KnowledgeGetStatusMoveDestination(KNOWLEDGE * k, uint32_t status);
+//KNOWLEDGE * CreateKnowledge(KNOWLEDGE * raw);
+//void DestroyKnowledge(KNOWLEDGE ** k);
+uint32_t KnowledgeGetMove(KNOWLEDGE * k, BOARD board, KNOWLEDGE_MOVE * move);
+void KnowledgeUpdate(KNOWLEDGE * k, BOARD board, KNOWLEDGE_MOVE * move);
 
 
 struct player_t;
